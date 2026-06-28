@@ -27,11 +27,10 @@ export default function LoginPage() {
 
     if (authError) {
       setError('Email atau kata sandi salah.')
+      setLoading(false)
     } else {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     }
-    setLoading(false)
   }
 
   return (
