@@ -111,7 +111,7 @@ function GroupInput({ value, onChange, suggestions }: {
 const RSVP_OPTIONS = [
   { key: 'pending', label: 'Pending', variant: 'gray' as const },
   { key: 'hadir', label: 'Hadir', variant: 'green' as const },
-  { key: 'tidak_hadir', label: 'Tidak Hadir', variant: 'brown' as const },
+  { key: 'tidak_hadir', label: 'Terundang', variant: 'brown' as const },
 ]
 
 interface GuestForm {
@@ -153,6 +153,10 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Pagination
+  const PAGE_SIZE = 15
+  const [page, setPage] = useState(1)
+
   const supabase = createClient()
 
   const pihakOpts = [
@@ -169,12 +173,14 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
   ]
 
   const tabGuests = useMemo(() => {
+    setPage(1)
     if (activeTab === 'all') return guests
     if (activeTab === 'both') return guests.filter(g => ['both', 'akad', 'resepsi'].includes(g.invitation_type))
     return guests.filter(g => g.invitation_type === activeTab)
   }, [guests, activeTab])
 
   const filtered = useMemo(() => {
+    setPage(1)
     if (!search) return tabGuests
     const q = search.toLowerCase()
     return tabGuests.filter(g =>
@@ -183,7 +189,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
     )
   }, [tabGuests, search])
 
-  const groupedGuests = useMemo(() => {
+  const allGrouped = useMemo(() => {
     const groups: Record<string, Guest[]> = {}
     filtered.forEach(g => {
       const key = g.group_label || 'Lainnya'
@@ -192,6 +198,27 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
     })
     return groups
   }, [filtered])
+
+  // Pagination per kelompok: kumpulkan kelompok sampai PAGE_SIZE tamu terpenuhi
+  const groupPages = useMemo(() => {
+    const pages: Array<[string, Guest[]][]> = []
+    let current: [string, Guest[]][] = []
+    let count = 0
+    for (const entry of Object.entries(allGrouped)) {
+      if (count > 0 && count + entry[1].length > PAGE_SIZE) {
+        pages.push(current)
+        current = []
+        count = 0
+      }
+      current.push(entry)
+      count += entry[1].length
+    }
+    if (current.length > 0) pages.push(current)
+    return pages
+  }, [allGrouped])
+
+  const totalPages = groupPages.length
+  const groupedGuests = groupPages[page - 1] ?? []
 
   const totalKepala = tabGuests.reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
   const hadir = tabGuests.filter(g => g.rsvp_status === 'hadir').reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
@@ -297,7 +324,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
         {[
           { label: 'Kepala', count: totalKepala, color: '#1A1A1A' },
           { label: 'Hadir', count: hadir, color: '#2D4A3E' },
-          { label: 'Tidak Hadir', count: tidakHadir, color: '#B5704F' },
+          { label: 'Terundang', count: tidakHadir, color: '#B5704F' },
           { label: 'Pending', count: pending, color: '#6B6560' },
         ].map((s) => (
           <div key={s.label} className="flex-1 text-center py-3 rounded-xl" style={{ backgroundColor: '#fff', border: '1px solid #F0EAE2' }}>
@@ -387,7 +414,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
 
       {/* Guest list */}
       <div className="px-5 pb-4">
-        {Object.entries(groupedGuests).map(([group, groupGuests]) => (
+        {groupedGuests.map(([group, groupGuests]) => (
           <div key={group} className="mb-5">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold" style={{ color: '#6B6560' }}>{group}</h3>
@@ -497,6 +524,34 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
             <p className="text-xs" style={{ color: '#6B6560' }}>
               {search ? 'Coba kata kunci lain' : 'Tap + untuk menambahkan tamu'}
             </p>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2 pb-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
+              style={{ backgroundColor: '#EDE5DC', color: '#6B6560' }}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
+              </svg>
+              Sebelumnya
+            </button>
+            <span className="text-xs" style={{ color: '#6B6560' }}>{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
+              style={{ backgroundColor: '#EDE5DC', color: '#6B6560' }}
+            >
+              Berikutnya
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 4l4 4-4 4" />
+              </svg>
+            </button>
           </div>
         )}
       </div>
