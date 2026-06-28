@@ -225,6 +225,7 @@ export interface Guest {
   group_label: string | null
   invitation_type: string
   rsvp_status: string
+  has_partner: boolean
   seat_number: string | null
   gift_notes: string | null
   created_at: string

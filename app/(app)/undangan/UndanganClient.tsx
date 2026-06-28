@@ -9,6 +9,36 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import type { Guest } from '@/types/database'
 
+function PartnerToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all"
+      style={{ backgroundColor: value ? 'rgba(45,74,62,0.08)' : '#F7F3EE', border: `1.5px solid ${value ? '#2D4A3E' : '#E0D8D0'}` }}
+    >
+      <div className="flex items-center gap-2.5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4" style={{ color: value ? '#2D4A3E' : '#6B6560' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 -ml-1.5" style={{ color: value ? '#2D4A3E' : '#6B6560' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        </svg>
+        <span className="text-sm font-medium" style={{ color: value ? '#2D4A3E' : '#6B6560' }}>Membawa pasangan</span>
+      </div>
+      <div
+        className="w-10 h-6 rounded-full flex items-center px-0.5 transition-all"
+        style={{ backgroundColor: value ? '#2D4A3E' : '#D4CBC2' }}
+      >
+        <div
+          className="w-5 h-5 rounded-full bg-white shadow transition-transform"
+          style={{ transform: value ? 'translateX(16px)' : 'translateX(0)' }}
+        />
+      </div>
+    </button>
+  )
+}
+
 function GroupInput({ value, onChange, suggestions }: {
   value: string
   onChange: (val: string) => void
@@ -89,6 +119,7 @@ interface GuestForm {
   phone: string
   group_label: string
   invitation_type: string
+  has_partner: boolean
 }
 
 interface Props {
@@ -110,12 +141,12 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
 
   // Add
   const [showAdd, setShowAdd] = useState(false)
-  const [newGuest, setNewGuest] = useState<GuestForm>({ name: '', phone: '', group_label: '', invitation_type: 'both' })
+  const [newGuest, setNewGuest] = useState<GuestForm>({ name: '', phone: '', group_label: '', invitation_type: 'both', has_partner: false })
   const [adding, setAdding] = useState(false)
 
   // Edit
   const [editId, setEditId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<GuestForm>({ name: '', phone: '', group_label: '', invitation_type: 'both' })
+  const [editForm, setEditForm] = useState<GuestForm>({ name: '', phone: '', group_label: '', invitation_type: 'both', has_partner: false })
   const [saving, setSaving] = useState(false)
 
   // Delete confirm
@@ -162,9 +193,10 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
     return groups
   }, [filtered])
 
-  const hadir = tabGuests.filter(g => g.rsvp_status === 'hadir').length
-  const tidakHadir = tabGuests.filter(g => g.rsvp_status === 'tidak_hadir').length
-  const pending = tabGuests.filter(g => g.rsvp_status === 'pending').length
+  const totalKepala = tabGuests.reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
+  const hadir = tabGuests.filter(g => g.rsvp_status === 'hadir').reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
+  const tidakHadir = tabGuests.filter(g => g.rsvp_status === 'tidak_hadir').reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
+  const pending = tabGuests.filter(g => g.rsvp_status === 'pending').reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)
 
   const tabCounts: Record<string, number> = {
     all: guests.length,
@@ -188,10 +220,11 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
       phone: newGuest.phone || null,
       group_label: newGuest.group_label || null,
       invitation_type: newGuest.invitation_type,
+      has_partner: newGuest.has_partner,
     }).select().single()
     if (data) {
       setGuests(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
-      setNewGuest({ name: '', phone: '', group_label: '', invitation_type: 'both' })
+      setNewGuest({ name: '', phone: '', group_label: '', invitation_type: 'both', has_partner: false })
       setShowAdd(false)
     }
     setAdding(false)
@@ -204,6 +237,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
       phone: guest.phone ?? '',
       group_label: guest.group_label ?? '',
       invitation_type: guest.invitation_type,
+      has_partner: guest.has_partner,
     })
   }
 
@@ -217,6 +251,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
         phone: editForm.phone || null,
         group_label: editForm.group_label || null,
         invitation_type: editForm.invitation_type,
+        has_partner: editForm.has_partner,
       })
       .eq('id', editId)
       .select()
@@ -243,7 +278,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
     <div>
       <PageHeader
         title="Daftar Undangan"
-        subtitle={`${guests.length} tamu`}
+        subtitle={`${guests.length} tamu · ${totalKepala} kepala`}
         rightElement={
           <button
             onClick={() => setShowAdd(true)}
@@ -258,9 +293,9 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
       />
 
       {/* Stats */}
-      <div className="px-5 mb-4 flex gap-3">
+      <div className="px-5 mb-4 flex gap-2">
         {[
-          { label: 'Total', count: tabGuests.length, color: '#1A1A1A' },
+          { label: 'Kepala', count: totalKepala, color: '#1A1A1A' },
           { label: 'Hadir', count: hadir, color: '#2D4A3E' },
           { label: 'Tidak Hadir', count: tidakHadir, color: '#B5704F' },
           { label: 'Pending', count: pending, color: '#6B6560' },
@@ -340,6 +375,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
                   ))}
                 </div>
               </div>
+              <PartnerToggle value={newGuest.has_partner} onChange={v => setNewGuest(p => ({ ...p, has_partner: v }))} />
               <div className="flex gap-2">
                 <Button onClick={addGuest} loading={adding} size="sm">Tambah</Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>Batal</Button>
@@ -355,7 +391,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
           <div key={group} className="mb-5">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold" style={{ color: '#6B6560' }}>{group}</h3>
-              <span className="text-xs" style={{ color: '#6B6560' }}>{groupGuests.length} orang</span>
+              <span className="text-xs" style={{ color: '#6B6560' }}>{groupGuests.reduce((s, g) => s + (g.has_partner ? 2 : 1), 0)} kepala</span>
             </div>
             <div className="flex flex-col gap-2">
               {groupGuests.map((guest) => {
@@ -383,6 +419,7 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
                             ))}
                           </div>
                         </div>
+                        <PartnerToggle value={editForm.has_partner} onChange={v => setEditForm(p => ({ ...p, has_partner: v }))} />
                         <div className="flex gap-2">
                           <Button onClick={saveEdit} loading={saving} size="sm">Simpan</Button>
                           <Button variant="ghost" size="sm" onClick={() => setEditId(null)}>Batal</Button>
@@ -396,7 +433,15 @@ export function UndanganClient({ guests: initialGuests, weddingId, groomName, br
                           {guest.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{guest.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{guest.name}</p>
+                            {guest.has_partner && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: 'rgba(45,74,62,0.1)', color: '#2D4A3E' }}>
+                                +1
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             {guest.phone && <p className="text-xs" style={{ color: '#6B6560' }}>{guest.phone}</p>}
                             {pihak && activeTab === 'all' && (
