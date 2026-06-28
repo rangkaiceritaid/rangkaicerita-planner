@@ -479,11 +479,9 @@ export function AnggaranClient({ wedding, categories: initialCategories, items: 
                       <button onClick={() => setEditCatId(null)}
                         className="text-xs font-medium px-2 py-1.5 rounded-lg"
                         style={{ color: '#6B6560', backgroundColor: '#F5F0EB' }}>✕</button>
-                      {cat.is_custom && (
-                        <button onClick={() => deleteCat(cat.id)}
-                          className="text-xs font-medium px-2 py-1.5 rounded-lg"
-                          style={{ color: '#E05252', backgroundColor: 'rgba(224,82,82,0.08)' }}>Hapus</button>
-                      )}
+                      <button onClick={() => deleteCat(cat.id)}
+                        className="text-xs font-medium px-2 py-1.5 rounded-lg"
+                        style={{ color: '#E05252', backgroundColor: 'rgba(224,82,82,0.08)' }}>Hapus</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 w-full px-4 py-3 cursor-pointer"
