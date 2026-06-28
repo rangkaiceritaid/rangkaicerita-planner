@@ -19,16 +19,35 @@ declare global {
   }
 }
 
+function parseVCard(text: string): { name?: string; phone?: string } {
+  const name = text.match(/^FN[^:]*:(.+)$/m)?.[1]?.trim()
+  // Ambil nomor pertama, bersihkan karakter non-digit kecuali +
+  const rawPhone = text.match(/^TEL[^:]*:(.+)$/m)?.[1]?.trim()
+  const phone = rawPhone?.replace(/[^\d+]/g, '') || undefined
+  return { name, phone }
+}
+
+const PHONE_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+  </svg>
+)
+
 function ContactPickerButton({ onPick }: { onPick: (name?: string, phone?: string) => void }) {
-  const [supported, setSupported] = useState(false)
+  const [mode, setMode] = useState<'none' | 'native' | 'vcard'>('none')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setSupported(typeof navigator !== 'undefined' && 'contacts' in navigator)
+    if (typeof navigator !== 'undefined' && 'contacts' in navigator) {
+      setMode('native')
+    } else {
+      setMode('vcard')
+    }
   }, [])
 
-  if (!supported) return null
+  if (mode === 'none') return null
 
-  async function pick() {
+  async function pickNative() {
     try {
       const available = await navigator.contacts!.getProperties()
       const props = (['name', 'tel'] as const).filter(p => available.includes(p))
@@ -42,18 +61,59 @@ function ContactPickerButton({ onPick }: { onPick: (name?: string, phone?: strin
     }
   }
 
+  function handleVCardFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const { name, phone } = parseVCard(text)
+      onPick(name, phone)
+    }
+    reader.readAsText(file)
+    // Reset input so file dapat dipilih ulang
+    e.target.value = ''
+  }
+
+  const btnStyle: React.CSSProperties = {
+    color: '#B5704F',
+    backgroundColor: 'rgba(181,112,79,0.12)',
+  }
+
+  if (mode === 'native') {
+    return (
+      <button
+        type="button"
+        onClick={pickNative}
+        title="Pilih dari kontak HP"
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+        style={btnStyle}
+      >
+        {PHONE_ICON}
+      </button>
+    )
+  }
+
+  // vCard fallback (iOS & browser lain)
   return (
-    <button
-      type="button"
-      onClick={pick}
-      title="Pilih dari kontak HP"
-      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
-      style={{ color: '#B5704F', backgroundColor: 'rgba(181,112,79,0.12)' }}
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-      </svg>
-    </button>
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".vcf,text/vcard"
+        className="hidden"
+        onChange={handleVCardFile}
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        title="Import dari file kontak (.vcf)"
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+        style={btnStyle}
+      >
+        {PHONE_ICON}
+      </button>
+    </>
   )
 }
 
